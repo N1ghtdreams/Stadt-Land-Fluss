@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stadt Land Fluss Online</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .screen {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .screen.hidden {
+            display: none;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .checkbox-item label {
+            margin: 0;
+            cursor: pointer;
+            font-weight: normal;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background-color: #667eea;
+            color: white;
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1em;
+        }
+
+        .btn-primary:hover {
+            background-color: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background-color: #f39c12;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #e67e22;
+        }
+
+        .btn-danger {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+
+        .btn-success {
+            background-color: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #229954;
+        }
+
+        .game-code {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+            margin: 20px 0;
+            font-size: 1.2em;
+        }
+
+        .game-code-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .game-code-value {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 1.5em;
+            font-family: monospace;
+            margin-top: 10px;
+        }
+
+        .players-list {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        .players-list h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .player-item {
+            padding: 10px;
+            background: white;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+        }
+
+        .letter-display {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .timer {
+            font-size: 2em;
+            font-weight: bold;
+            color: #e74c3c;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .timer.warning {
+            animation: pulse 0.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+
+        .card-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .input-group input:focus {
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .status-message {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4caf50;
+        }
+
+        .status-message.error {
+            background: #ffebee;
+            color: #c62828;
+            border-left-color: #e74c3c;
+        }
+
+        .status-message.info {
+            background: #e3f2fd;
+            color: #1565c0;
+            border-left-color: #667eea;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .results-card {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+        }
+
+        .results-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .leaderboard-item:nth-child(1) {
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+        }
+
+        .leaderboard-item:nth-child(2) {
+            background: linear-gradient(135deg, #c0c0c0, #e8e8e8);
+        }
+
+        .leaderboard-item:nth-child(3) {
+            background: linear-gradient(135deg, #cd7f32, #d9a574);
+            color: white;
+        }
+
+        .validation-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+
+        .validation-buttons {
+            display: flex;
+            gap: 10px;
+            margin-left: auto;
+        }
+
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 0.9em;
+        }
+
+        .validation-item.approved {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+
+        .validation-item.rejected {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎮 Stadt Land Fluss Online 🎮</h1>
+
+    <div class="container">
+        <!-- Join/Create Screen -->
+        <div class="screen" id="joinScreen">
+            <div class="form-group">
+                <label for="playerName">Dein Name:</label>
+                <input type="text" id="playerName" placeholder="Gib deinen Namen ein">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: end;">
+                <div>
+                    <button class="btn btn-primary" onclick="createGame()">
+                        ➕ Neues Spiel erstellen
+                    </button>
+                </div>
+                <div style="text-align: center; font-weight: bold; color: #333;">ODER</div>
+                <div>
+                    <div class="form-group" style="margin: 0;">
+                        <label for="gameCode">Spiel-Code:</label>
+                        <input type="text" id="gameCode" placeholder="z.B. abc12xyz" maxlength="9">
+                    </div>
+                    <button class="btn btn-secondary" onclick="joinGame()" style="width: 100%;">
+                        🔗 Beitreten
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Setup Screen -->
+        <div class="screen hidden" id="setupScreen">
+            <div class="game-code">
+                <div class="game-code-label">Gib diesen Code deinen Freunden:</div>
+                <div class="game-code-value" id="codeDisplay"></div>
+                <button class="btn btn-secondary btn-small" onclick="copyToClipboard()" style="margin-top: 10px;">
+                    📋 Kopieren
+                </button>
+            </div>
+
+            <div class="players-list">
+                <h3>👥 Spieler (<span id="playerCount">0</span>)</h3>
+                <div id="playersList"></div>
+            </div>
+
+            <div id="setupContent"></div>
+
+            <div class="button-group">
+                <button class="btn btn-success" onclick="startGame()" style="flex: 1;">
+                    ▶️ Spiel starten
+                </button>
+                <button class="btn btn-danger" onclick="leaveGame()">
+                    ❌ Verlassen
+                </button>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div class="screen hidden" id="gameScreen">
+            <div class="game-header">
+                <div class="letter-display">Buchstabe: <span id="letterDisplay">A</span></div>
+                <div class="timer" id="timer">120</div>
+            </div>
+
+            <div class="game-grid" id="gameGrid"></div>
+
+            <div class="button-group">
+                <button class="btn btn-secondary" onclick="skipLetter()">
+                    ⏭️ Nächster Buchstabe
+                </button>
+                <button class="btn btn-danger" onclick="endGame()">
+                    🛑 Spiel beenden
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Screen -->
+        <div class="screen hidden" id="resultsScreen">
+            <h2 style="text-align: center; margin-bottom: 30px;">📊 Ergebnisse 📊</h2>
+
+            <div id="validationSection" style="margin-bottom: 40px;">
+                <h3 style="margin-bottom: 15px;">⚖️ Wörter überprüfen:</h3>
+                <div id="validationList"></div>
+            </div>
+
+            <div class="results-grid">
+                <div class="results-card">
+                    <h3>🏆 Abschlusswertung</h3>
+                    <div id="leaderboard"></div>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="returnToJoin()">
+                    🏠 Zur Startseite
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        
+        let appState = {
+            gameId: null,
+            playerName: null,
+            isHost: false,
+            players: [],
+            gameState: 'init', // init, waiting, setup, playing, results
+            settings: null,
+            currentLetter: 'A',
+            answers: {},
+            wordValidation: {},
+            scores: {},
+            timerInterval: null,
+            timeRemaining: 0,
+            myAnswers: {}
+        };
+
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+        // Socket Events
+        socket.on('playerJoined', (data) => {
+            appState.players = data.players;
+            updatePlayersList();
+            showMessage(`${data.players[data.players.length - 1]} ist beigetreten!`, 'info');
+        });
+
+        socket.on('playerLeft', (data) => {
+            appState.players = data.players;
+            updatePlayersList();
+            showMessage('Ein Spieler hat das Spiel verlassen', 'info');
+        });
+
+        socket.on('gameStarted', (data) => {
+            appState.settings = data.settings;
+            appState.players = data.players;
+            appState.gameState = 'playing';
+            appState.answers = {};
+            appState.myAnswers = {};
+            appState.wordValidation = {};
+
+            showScreen('gameScreen');
+            getNextLetter();
+            renderGameScreen();
+            startTimer();
+        });
+
+        socket.on('answersSubmitted', (data) => {
+            // Optional: Show who submitted
+            if (data.allAnswered) {
+                showMessage('Alle Spieler haben beantwortet! ✓', 'info');
+            }
+        });
+
+        socket.on('gameEnded', (data) => {
+            clearInterval(appState.timerInterval);
+            appState.answers = data.answers;
+            appState.gameState = 'results';
+            appState.scores = data.scores;
+
+            showScreen('resultsScreen');
+            renderResults();
+        });
+
+        socket.on('scoresUpdated', (data) => {
+            appState.scores = data.scores;
+            appState.wordValidation = data.wordValidation;
+            renderLeaderboard();
+        });
+
+        // UI Functions
+        function createGame() {
+            const name = document.getElementById('playerName').value.trim();
+            if (!name) {
+                showMessage('Bitte gib einen Namen ein!', 'error');
+                return;
+            }
+
+            appState.playerName = name;
+            appState.isHost = true;
+
+            socket.emit('createGame', name, (response) => {
+                if (response.success) {
+                    appState.gameId = response.gameId;
+                    appState.gameState = 'setup';
+                    appState.players = [name];
+                    
+                    showScreen('setupScreen');
+                    document.getElementById('codeDisplay').textContent = response.gameId.toUpperCase();
+                    renderSetupScreen();
+                    updatePlayersList();
+                }
+            });
+        }
+
+        function joinGame() {
+            const name = document.getElementById('playerName').value.trim();
+            const code = document.getElementById('gameCode').value.trim().toLowerCase();
+
+            if (!name) {
+                showMessage('Bitte gib einen Namen ein!', 'error');
+                return;
+            }
+
+            if (!code) {
+                showMessage('Bitte gib einen Spiel-Code ein!', 'error');
+                return;
+            }
+
+            appState.playerName = name;
+            socket.emit('joinGame', code, name, (response) => {
+                if (response.success) {
+                    appState.gameId = code;
+                    appState.gameState = 'setup';
+                    
+                    showScreen('setupScreen');
+                    document.getElementById('codeDisplay').textContent = code.toUpperCase();
+                    renderSetupScreen();
+                } else {
+                    showMessage(response.message, 'error');
+                }
+            });
+        }
+
+        function renderSetupScreen() {
+            if (appState.isHost) {
+                const html = `
+                    <div class="form-group">
+                        <label for="timeLimit">Zeit pro Runde (Sekunden):</label>
+                        <input type="number" id="timeLimit" min="30" max="300" value="120">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Kategorien:</label>
+                        <div class="checkbox-group" id="categoriesCheckbox">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="cat-stadt" value="Stadt" checked>
+                                <label for="cat-stadt">Stadt</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="cat-land" value="Land" checked>
+                                <label for="cat-land">Land</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="cat-fluss" value="Fluss" checked>
+                                <label for="cat-fluss">Fluss</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="cat-videospiel" value="Videospiel">
+                                <label for="cat-videospiel">Videospiel</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="cat-job" value="Job">
+                                <label for="cat-job">Job</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="cat-beleidigung" value="Beleidigung">
+                                <label for="cat-beleidigung">Beleidigung</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="cat-auto" value="Auto">
+                                <label for="cat-auto">Auto</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="cat-sport" value="Sport">
+                                <label for="cat-sport">Sport</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="cat-farbe" value="Farbe">
+                                <label for="cat-farbe">Farbe</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="cat-pflanze" value="Pflanze">
+                                <label for="cat-pflanze">Pflanze</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="cat-tier" value="Tier">
+                                <label for="cat-tier">Tier</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="cat-movie" value="Film">
+                                <label for="cat-movie">Film</label>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('setupContent').innerHTML = html;
+            } else {
+                document.getElementById('setupContent').innerHTML = '<p style="color: #666; text-align: center;">Warte bis der Host das Spiel startet...</p>';
+            }
+        }
+
+        function startGame() {
+            if (!appState.isHost) return;
+
+            const timeLimit = parseInt(document.getElementById('timeLimit').value);
+            const checkboxes = document.querySelectorAll('#categoriesCheckbox input[type="checkbox"]:checked');
+            const categories = Array.from(checkboxes).map(cb => cb.value);
+
+            if (categories.length === 0) {
+                showMessage('Bitte wähle mindestens eine Kategorie!', 'error');
+                return;
+            }
+
+            const settings = {
+                timeLimit,
+                categories
+            };
+
+            socket.emit('startGame', settings);
+        }
+
+        function getNextLetter() {
+            appState.currentLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
+            document.getElementById('letterDisplay').textContent = appState.currentLetter;
+        }
+
+        function renderGameScreen() {
+            const gameGrid = document.getElementById('gameGrid');
+            gameGrid.innerHTML = '';
+
+            // Info Nachricht
+            const infoDiv = document.createElement('div');
+            infoDiv.style.cssText = 'background: #e3f2fd; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #667eea;';
+            infoDiv.innerHTML = '<strong>🔒 Nur du kannst deine Antworten sehen!</strong> Die Antworten der anderen Spieler werden erst am Ende enthüllt.';
+            gameGrid.appendChild(infoDiv);
+
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.style.gridColumn = '1 / -1';
+
+            let html = `<div class="card-title">🎯 Deine Antworten für Buchstabe ${appState.currentLetter}</div>`;
+
+            appState.settings.categories.forEach(category => {
+                const inputId = `${category}-${appState.currentLetter}`;
+                const value = appState.myAnswers[appState.currentLetter]?.[category] || '';
+
+                html += `
+                    <div class="input-group">
+                        <label for="${inputId}">${category}:</label>
+                        <input type="text" id="${inputId}" placeholder="${appState.currentLetter}..." value="${value}">
+                    </div>
+                `;
+            });
+
+            card.innerHTML = html;
+            gameGrid.appendChild(card);
+        }
+
+        function startTimer() {
+            appState.timeRemaining = appState.settings.timeLimit;
+            const timerElement = document.getElementById('timer');
+
+            clearInterval(appState.timerInterval);
+            appState.timerInterval = setInterval(() => {
+                appState.timeRemaining--;
+                timerElement.textContent = appState.timeRemaining;
+
+                if (appState.timeRemaining <= 10) {
+                    timerElement.classList.add('warning');
+                } else {
+                    timerElement.classList.remove('warning');
+                }
+
+                if (appState.timeRemaining <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function skipLetter() {
+            saveAnswers();
+            getNextLetter();
+            renderGameScreen();
+            appState.timeRemaining = appState.settings.timeLimit;
+            document.getElementById('timer').textContent = appState.timeRemaining;
+        }
+
+        function saveAnswers() {
+            if (!appState.myAnswers[appState.currentLetter]) {
+                appState.myAnswers[appState.currentLetter] = {};
+            }
+
+            appState.settings.categories.forEach(category => {
+                const inputId = `${category}-${appState.currentLetter}`;
+                const input = document.getElementById(inputId);
+                if (input) {
+                    appState.myAnswers[appState.currentLetter][category] = input.value.trim();
+                }
+            });
+
+            socket.emit('submitAnswers', appState.currentLetter, appState.myAnswers[appState.currentLetter]);
+        }
+
+        function endGame() {
+            clearInterval(appState.timerInterval);
+            saveAnswers();
+            socket.emit('endGame');
+        }
+
+        function renderResults() {
+            renderValidation();
+            renderLeaderboard();
+        }
+
+        function renderValidation() {
+            const validationList = document.getElementById('validationList');
+            validationList.innerHTML = '';
+
+            const wordList = [];
+
+            for (const letter in appState.answers) {
+                for (const player in appState.answers[letter]) {
+                    const playerAnswers = appState.answers[letter][player];
+                    for (const category in playerAnswers) {
+                        const word = playerAnswers[category];
+                        if (word) {
+                            const key = `${letter}-${category}-${word.toLowerCase()}`;
+                            if (!appState.wordValidation[key]) {
+                                appState.wordValidation[key] = { approved: null };
+                            }
+                            if (!wordList.find(w => w.key === key)) {
+                                wordList.push({ key, word, letter, category });
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (wordList.length === 0) {
+                validationList.innerHTML = '<p style="color: #666;">Keine Wörter zum überprüfen.</p>';
+                return;
+            }
+
+            wordList.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'validation-item';
+                div.id = `validation-${item.key}`;
+
+                const status = appState.wordValidation[item.key].approved;
+                if (status === true) div.classList.add('approved');
+                if (status === false) div.classList.add('rejected');
+
+                const statusText = status === null ? '' :
+                    status ? '✓ Genehmigt' : '✗ Abgelehnt';
+
+                div.innerHTML = `
+                    <div style="flex: 1;">
+                        <strong>${item.word}</strong> <span style="color: #999;">(${item.letter} - ${item.category})</span>
+                    </div>
+                    ${status === null ? `
+                        <div class="validation-buttons">
+                            <button class="btn btn-success btn-small" onclick="approveWord('${item.key}')">✓ Ok</button>
+                            <button class="btn btn-danger btn-small" onclick="rejectWord('${item.key}')">✗ Nein</button>
+                        </div>
+                    ` : `
+                        <div style="font-weight: bold; margin-left: 10px;">${statusText}</div>
+                    `}
+                `;
+
+                validationList.appendChild(div);
+            });
+        }
+
+        function approveWord(key) {
+            appState.wordValidation[key].approved = true;
+            updateValidationUI(key);
+            socket.emit('validateWord', key, true);
+        }
+
+        function rejectWord(key) {
+            appState.wordValidation[key].approved = false;
+            updateValidationUI(key);
+            socket.emit('validateWord', key, false);
+        }
+
+        function updateValidationUI(key) {
+            const element = document.getElementById(`validation-${key}`);
+            element.classList.remove('approved', 'rejected');
+
+            const approved = appState.wordValidation[key].approved;
+            if (approved === true) {
+                element.classList.add('approved');
+            } else if (approved === false) {
+                element.classList.add('rejected');
+            }
+        }
+
+        function renderLeaderboard() {
+            const leaderboard = document.getElementById('leaderboard');
+            leaderboard.innerHTML = '';
+
+            if (!appState.scores || Object.keys(appState.scores).length === 0) {
+                leaderboard.innerHTML = '<p style="color: #666;">Keine Einträge</p>';
+                return;
+            }
+
+            const sorted = Object.entries(appState.scores)
+                .sort((a, b) => b[1] - a[1]);
+
+            sorted.forEach((entry, idx) => {
+                const [player, score] = entry;
+                const medals = ['🥇', '🥈', '🥉'];
+                const medal = medals[idx] || `${idx + 1}.`;
+
+                const div = document.createElement('div');
+                div.className = 'leaderboard-item';
+                div.innerHTML = `
+                    <span>${medal} ${player}</span>
+                    <span>${score} Punkte</span>
+                `;
+                leaderboard.appendChild(div);
+            });
+        }
+
+        // Utility Functions
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function showMessage(text, type = 'info') {
+            const msg = document.createElement('div');
+            msg.className = `status-message ${type}`;
+            msg.textContent = text;
+            document.body.insertBefore(msg, document.body.firstChild);
+
+            setTimeout(() => msg.remove(), 4000);
+        }
+
+        function updatePlayersList() {
+            const list = document.getElementById('playersList');
+            list.innerHTML = appState.players
+                .map(p => `<div class="player-item">👤 ${p}</div>`)
+                .join('');
+            document.getElementById('playerCount').textContent = appState.players.length;
+        }
+
+        function copyToClipboard() {
+            const code = appState.gameId.toUpperCase();
+            navigator.clipboard.writeText(code).then(() => {
+                showMessage('Code kopiert! 📋', 'info');
+            });
+        }
+
+        function leaveGame() {
+            appState.gameId = null;
+            appState.gameState = 'init';
+            socket.disconnect();
+            location.reload();
+        }
+
+        function returnToJoin() {
+            leaveGame();
+        }
+    </script>
+</body>
+</html>
