@@ -13,7 +13,17 @@ Ein interaktives Stadt-Land-Fluss Spiel zum Online spielen mit Freunden!
 npm install
 ```
 
-### Schritt 2: Server starten
+### Schritt 2: Git‑Repository vorbereiten (nur einmal nötig)
+Falls du das Projekt noch nicht versioniert hast, musst du einmal ein Git‑Repo einrichten, damit deine Änderungen später gepusht werden können:
+```
+cd "C:\Users\Home\Documents\Eigenes Minecraft"
+git init
+git add .
+git commit -m "initial commit"
+```
+Danach kannst du es zu GitHub, Render oder einem anderen Dienst hochladen.
+
+### Schritt 3: Server starten
 ```
 npm start
 ```
