@@ -2,8 +2,27 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
+const session = require('express-session');
+const fs = require('fs');
+const bcrypt = require('bcrypt');
 
 const app = express();
+
+// simple file-based user store
+const USERS_FILE = path.join(__dirname, 'users.json');
+let users = {};
+function loadUsers() {
+    try {
+        users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')) || {};
+    } catch (e) {
+        users = {};
+    }
+}
+function saveUsers() {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+}
+loadUsers();
+
 const server = http.createServer(app);
 const io = socketIo(server, {
     cors: {
@@ -12,12 +31,59 @@ const io = socketIo(server, {
     }
 });
 
+// session middleware
+const sessionMiddleware = session({
+    secret: 'stadtlandflusssh',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 } // 30 days
+});
+app.use(sessionMiddleware);
+
+// share session with socket.io
+io.use((socket, next) => {
+    sessionMiddleware(socket.request, {}, next);
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
+
+// auth endpoints
+app.post('/api/signup', async (req, res) => {
+    const { name, password } = req.body;
+    if (!name || !password) return res.status(400).json({ error: 'fehlende Daten' });
+    if (users[name]) return res.status(400).json({ error: 'Name existiert' });
+    const hash = await bcrypt.hash(password, 10);
+    users[name] = { name, password: hash, wins: 0, games: 0, level: 1 };
+    saveUsers();
+    req.session.user = { name, wins:0, games:0, level:1 };
+    res.json({ ok: true });
+});
+app.post('/api/login', async (req, res) => {
+    const { name, password } = req.body;
+    const u = users[name];
+    if (!u) return res.status(400).json({ error: 'unbekannter Benutzer' });
+    const ok = await bcrypt.compare(password, u.password);
+    if (!ok) return res.status(400).json({ error: 'falsches Passwort' });
+    req.session.user = { name: u.name, wins: u.wins, games: u.games, level: u.level };
+    res.json({ ok: true, user: req.session.user });
+});
+app.post('/api/logout', (req, res) => {
+    req.session.destroy();
+    res.json({ ok: true });
+});
+app.get('/api/me', (req, res) => {
+    res.json({ user: req.session.user || null });
+});
 
 let games = {}; // { gameId: { players: {}, gameState: {}, ... } }
 
 io.on('connection', (socket) => {
-    console.log('Neuer Benutzer verbunden:', socket.id);
+    const session = socket.request.session;
+    if (session && session.user) {
+        socket.user = session.user.name;
+    }
+    console.log('Neuer Benutzer verbunden:', socket.id, 'user=', socket.user);
 
     // Neues Spiel erstellen
     socket.on('createGame', (playerName, callback) => {
@@ -141,6 +207,37 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('gameEnded', {
             answers: games[gameId].answers,
             scores: resultsData.scores
+        });
+        // update stats
+        const scores = resultsData.scores;
+        // find max
+        const max = Math.max(...Object.values(scores));
+        const winners = Object.keys(scores).filter(n => scores[n] === max);
+        Object.keys(games[gameId].players).forEach(pid => {
+            const pname = games[gameId].players[pid].name;
+            if (users[pname]) {
+                users[pname].games = (users[pname].games || 0) + 1;
+                if (winners.includes(pname)) {
+                    users[pname].wins = (users[pname].wins || 0) + 1;
+                }
+                // level formula
+                users[pname].level = 1 + Math.floor((users[pname].wins||0)/5);
+                saveUsers();
+                // if connected socket for that player available, emit stats
+                io.to(gameId).clients((err, clients) => {
+                    if (!err) {
+                        clients.forEach(cid => {
+                            if (games[gameId].players[cid] && games[gameId].players[cid].name === pname) {
+                                io.to(cid).emit('stats', {
+                                    wins: users[pname].wins,
+                                    games: users[pname].games,
+                                    level: users[pname].level
+                                });
+                            }
+                        });
+                    }
+                });
+            }
         });
 
         console.log(`Spiel ${gameId} beendet`);

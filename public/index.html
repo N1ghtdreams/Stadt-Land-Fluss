@@ -81,8 +81,25 @@
         }
 
         .checkbox-item {
-            display: flex;
+            display: inline-flex;
             align-items: center;
+            background: #f5f5f5;
+            border-radius: 20px;
+            padding: 5px 10px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .checkbox-item input {
+            margin: 0;
+        }
+        .checkbox-item:hover {
+            background: #e0e0e0;
+        }
+        .checkbox-item.selected {
+            background: #667eea;
+        }
+        .checkbox-item.selected label {
+            color: white;
         }
 
         input[type="checkbox"] {
@@ -356,6 +373,19 @@
             padding: 8px 15px;
             font-size: 0.9em;
         }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        table th {
+            background: #f5f5f5;
+        }
 
         .validation-item.approved {
             background: #d4edda;
@@ -372,11 +402,28 @@
     <h1>🎮 Stadt Land Fluss Online 🎮</h1>
 
     <div class="container">
+        <!-- Authentication Screen -->
+        <div class="screen" id="authScreen">
+            <div class="form-group">
+                <label for="authName">Benutzername:</label>
+                <input type="text" id="authName" placeholder="Nutzername eingeben">
+            </div>
+            <div class="form-group">
+                <label for="authPassword">Passwort:</label>
+                <input type="password" id="authPassword" placeholder="Passwort">
+            </div>
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="loginUser()">Anmelden</button>
+                <button class="btn btn-secondary" onclick="signupUser()">Registrieren</button>
+            </div>
+        </div>
+
         <!-- Join/Create Screen -->
-        <div class="screen" id="joinScreen">
+        <div class="screen hidden" id="joinScreen">
+            <div class="status-message info" id="userInfo" style="display:none;margin-bottom:20px;"></div>
             <div class="form-group">
                 <label for="playerName">Dein Name:</label>
-                <input type="text" id="playerName" placeholder="Gib deinen Namen ein">
+                <input type="text" id="playerName" placeholder="Gib deinen Namen ein" readonly>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: end;">
@@ -395,6 +442,9 @@
                         🔗 Beitreten
                     </button>
                 </div>
+            </div>
+            <div class="button-group" style="margin-top:20px;">
+                <button class="btn btn-danger" onclick="logout()">Abmelden</button>
             </div>
         </div>
 
@@ -484,10 +534,100 @@
             scores: {},
             timerInterval: null,
             timeRemaining: 0,
-            myAnswers: {}
+            myAnswers: {},
+            user: null
         };
 
+        // authentication helpers
+        async function fetchMe() {
+            const r = await fetch('/api/me');
+            const j = await r.json();
+            appState.user = j.user;
+            if (appState.user) {
+                document.getElementById('playerName').value = appState.user.name;
+                document.getElementById('userInfo').style.display = 'block';
+                document.getElementById('userInfo').textContent = `Angemeldet als ${appState.user.name} (Level ${appState.user.level})`;
+                showScreen('joinScreen');
+            } else {
+                showScreen('authScreen');
+            }
+        }
+
+        async function loginUser() {
+            const name = document.getElementById('authName').value.trim();
+            const pwd = document.getElementById('authPassword').value;
+            if (!name || !pwd) return showMessage('Name+Passwort eingeben','error');
+            const r = await fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,password:pwd})});
+            const j = await r.json();
+            if (j.ok) {
+                await fetchMe();
+            } else {
+                showMessage(j.error || 'Fehler','error');
+            }
+        }
+
+        async function signupUser() {
+            const name = document.getElementById('authName').value.trim();
+            const pwd = document.getElementById('authPassword').value;
+            if (!name || !pwd) return showMessage('Name+Passwort eingeben','error');
+            const r = await fetch('/api/signup',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,password:pwd})});
+            const j = await r.json();
+            if (j.ok) {
+                await fetchMe();
+            } else {
+                showMessage(j.error || 'Fehler','error');
+            }
+        }
+
+        async function logout() {
+            await fetch('/api/logout',{method:'POST'});
+            appState.user = null;
+            showScreen('authScreen');
+        }
+
         const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+        // category helpers
+        function initializeCategories() {
+            const defaultCats = ['Stadt','Land','Fluss','Videospiel','Job','Beleidigung','Auto','Sport','Farbe','Pflanze','Tier','Film'];
+            const container = document.getElementById('categoriesCheckbox');
+            container.innerHTML = '';
+            defaultCats.forEach(cat => addCategoryCheckbox(cat, ['Stadt','Land','Fluss'].includes(cat)));
+            const addBtn = document.getElementById('addCategoryBtn');
+            if (addBtn) {
+                addBtn.addEventListener('click', () => {
+                    const input = document.getElementById('newCategoryInput');
+                    const val = input.value.trim();
+                    if (val && !container.querySelector(`input[value="${val}"]`)) {
+                        addCategoryCheckbox(val, false);
+                        input.value = '';
+                    }
+                });
+            }
+        }
+
+        function addCategoryCheckbox(name, checked) {
+            const container = document.getElementById('categoriesCheckbox');
+            if (!container) return;
+            const id = `cat-${name.toLowerCase().replace(/\s+/g,'-')}`;
+            const div = document.createElement('div');
+            div.className = 'checkbox-item' + (checked ? ' selected' : '');
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.id = id;
+            input.value = name;
+            if (checked) input.checked = true;
+            input.addEventListener('change', () => {
+                div.classList.toggle('selected', input.checked);
+            });
+            const label = document.createElement('label');
+            label.htmlFor = id;
+            label.textContent = name;
+            div.appendChild(input);
+            div.appendChild(label);
+            container.appendChild(div);
+        }
+
 
         // Socket Events
         socket.on('playerJoined', (data) => {
@@ -603,59 +743,15 @@
 
                     <div class="form-group">
                         <label>Kategorien:</label>
-                        <div class="checkbox-group" id="categoriesCheckbox">
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="cat-stadt" value="Stadt" checked>
-                                <label for="cat-stadt">Stadt</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="cat-land" value="Land" checked>
-                                <label for="cat-land">Land</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="cat-fluss" value="Fluss" checked>
-                                <label for="cat-fluss">Fluss</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="cat-videospiel" value="Videospiel">
-                                <label for="cat-videospiel">Videospiel</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="cat-job" value="Job">
-                                <label for="cat-job">Job</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="cat-beleidigung" value="Beleidigung">
-                                <label for="cat-beleidigung">Beleidigung</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="cat-auto" value="Auto">
-                                <label for="cat-auto">Auto</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="cat-sport" value="Sport">
-                                <label for="cat-sport">Sport</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="cat-farbe" value="Farbe">
-                                <label for="cat-farbe">Farbe</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="cat-pflanze" value="Pflanze">
-                                <label for="cat-pflanze">Pflanze</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="cat-tier" value="Tier">
-                                <label for="cat-tier">Tier</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="cat-movie" value="Film">
-                                <label for="cat-movie">Film</label>
-                            </div>
+                        <div class="checkbox-group" id="categoriesCheckbox"></div>
+                        <div style="margin-top:10px; display:flex; gap:10px; align-items:center;">
+                            <input type="text" id="newCategoryInput" placeholder="Neue Kategorie" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:5px;">
+                            <button class="btn btn-secondary btn-small" id="addCategoryBtn">+</button>
                         </div>
                     </div>
                 `;
                 document.getElementById('setupContent').innerHTML = html;
+                initializeCategories();
             } else {
                 document.getElementById('setupContent').innerHTML = '<p style="color: #666; text-align: center;">Warte bis der Host das Spiel startet...</p>';
             }

@@ -35,6 +35,11 @@ Der Server läuft dann auf: **http://localhost:3000**
 3. Klick "Beitreten"
 4. Warte bis der Host das Spiel startet
 
+## 🔐 Anmeldung & Level
+
+Bevor du spielen kannst, **muss ein Nutzerkonto angelegt oder eingeloggt** werden. Die erste Seite zeigt ein Formular zum Registrieren oder Anmelden.
+Nach erfolgreicher Anmeldung siehst du deinen Namen und aktuellen Level oben auf der Startseite. Jeder Gewinn und jedes gespielte Spiel erhöht deine Level‑Fortschritte automatisch.
+
 ## 🎲 Spielmechanik
 
 - **Zufälliger Buchstabe** wird angezeigt
@@ -61,6 +66,7 @@ Der Server läuft dann auf: **http://localhost:3000**
 
 ## 📝 Features
 
+✅ Anmeldung/Registrierung mit Benutzerlevels  
 ✅ Echtzeit-Multiplayer über WebSockets  
 ✅ 12 verschiedene Kategorien  
 ✅ Anpassbare Kategorien & Spielzeit  
@@ -71,7 +77,13 @@ Der Server läuft dann auf: **http://localhost:3000**
 
 ## 📧 Fragen?
 
-Bei Problemen bitte den Server neu starten und nochmal versuchen!
+- Stelle sicher, dass du die **aktuelle Version** deines Codes verwendest. Nach Änderungen (z. B. Anmeldung/Level) musst du:
+  1. `git add . && git commit -m "neu: Anmeldung und Level"`
+  2. `git push` (damit Render/andere Hosting-Dienste neu deployen)
+  3. Den Browser-Cache leeren oder `Strg+F5` drücken.
+- Wenn du lokal testest, stoppe und starte den Server neu (`npm start`).
+
+Bei weiteren Problemen einfach melden!
 
 ---
 
